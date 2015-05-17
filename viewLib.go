@@ -41,9 +41,9 @@ type SavePoint struct {
 	UniqueViews int
 }
 
-//main checks checks for previos data, sets up multithreading and then
+//Init checks checks for previos data, sets up multithreading and then
 //initiates the HTTP server
-func viewLibInit() {
+func Init() {
 	//checks for present DB storage and loads it into memory
 	checkForRecords()
 
@@ -51,8 +51,8 @@ func viewLibInit() {
 	go periodicMemoryWriter()
 }
 
-//countHandler locks the counter and ip set mutexes, writes to both then unlocks
-func viewInc(ip string, page string) {
+//ViewInc locks the counter and ip set mutexes, writes to both then unlocks
+func ViewInc(ip string, page string) {
 	log.Println(ip + " requests " + page)
 
 	counter.Lock()
