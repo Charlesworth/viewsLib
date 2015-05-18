@@ -41,9 +41,10 @@ type SavePoint struct {
 	UniqueViews int
 }
 
-//Init checks checks for previos data, sets up multithreading and then
-//initiates the HTTP server
-func Init() {
+//init checks checks for previos data, sets up multithreading and then
+//initiates the HTTP server. init() does not need to be called, it runs
+//automatically when the package is called.
+func init() {
 	//checks for present DB storage and loads it into memory
 	checkForRecords()
 
