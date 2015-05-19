@@ -12,21 +12,21 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-//counter is an instance of a [pageName]pageView hash map. This is implemented with a
+//Counter is an instance of a [pageName]pageView hash map. This is implemented with a
 //mutex RW lock to stop goroutine data races
-var counter = struct {
+var Counter = struct {
 	sync.RWMutex
-	m map[string]int
-}{m: make(map[string]int)}
+	M map[string]int
+}{M: make(map[string]int)}
 
-//ips is an instance of a [ipAdress]bool hash map. We don't care about the bool,
+//IPs is an instance of a [ipAdress]bool hash map. We don't care about the bool,
 //using a hash map in this case just for the IP Key, as it offers a
 //easy implementation on a set with quick insertion. This struct has a
 //mutex RW lock to stop goroutine data races
-var ips = struct {
+var IPs = struct {
 	sync.RWMutex
-	m map[string]bool
-}{m: make(map[string]bool)}
+	M map[string]bool
+}{M: make(map[string]bool)}
 
 //IPList struct is used to marshal/unmarshal IP visitor data into JSON
 //to be sent to current storage
@@ -52,17 +52,19 @@ func init() {
 	go periodicMemoryWriter()
 }
 
-//ViewInc locks the counter and ip set mutexes, writes to both then unlocks
+//ViewInc locks the Counter and ip set mutexes, writes to both then unlocks
 func ViewInc(ip string, page string) {
 	log.Println(ip + " requests " + page)
 
-	counter.Lock()
-	counter.m[page]++
-	counter.Unlock()
+	Counter.Lock()
+	Counter.M[page]++
+	Counter.Unlock()
+	Counter.RLock()
+	Counter.RUnlock()
 
-	ips.Lock()
-	ips.m[ip] = true
-	ips.Unlock()
+	IPs.Lock()
+	IPs.M[ip] = true
+	IPs.Unlock()
 }
 
 //periodicMemoryWriter initiates a BoltDB client, sets up a ticker and
@@ -83,7 +85,7 @@ func periodicMemoryWriter() {
 		return nil
 	})
 
-	//start a ticker for auto uploading the ips and view count to bolt
+	//start a ticker for auto uploading the IPs and view count to bolt
 	//that triggers every ten minutes
 	ticker := time.NewTicker(time.Minute * 10)
 
@@ -96,20 +98,20 @@ func periodicMemoryWriter() {
 		date := strconv.Itoa((time.Now().YearDay() * 10000) + time.Now().Year())
 		fmt.Println(date)
 
-		counter.RLock()
-		ips.RLock()
+		Counter.RLock()
+		IPs.RLock()
 
 		m1 := SavePoint{
-			PageCounts:  counter.m,
-			UniqueViews: len(ips.m),
+			PageCounts:  Counter.M,
+			UniqueViews: len(IPs.M),
 		}
 
 		m2 := IPList{
-			IPs: ips.m,
+			IPs: IPs.M,
 		}
 
-		counter.RUnlock()
-		ips.RUnlock()
+		Counter.RUnlock()
+		IPs.RUnlock()
 
 		m1json, err := json.Marshal(m1)
 		errLog(err)
@@ -162,7 +164,7 @@ func checkForRecords() {
 		errLog(err)
 
 		for k, v := range mjson1.PageCounts {
-			counter.m[k] = v
+			Counter.M[k] = v
 		}
 
 		var mjson2 IPList
@@ -170,7 +172,7 @@ func checkForRecords() {
 		errLog(err)
 
 		for k := range mjson2.IPs {
-			ips.m[k] = true
+			IPs.M[k] = true
 		}
 
 	} else {
