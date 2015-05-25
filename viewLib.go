@@ -11,17 +11,16 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-//Counter is an instance of a [pageName]pageView hash map. This is implemented with a
-//mutex RW lock to stop goroutine data races
+//Counter is an instance of a [pageName]pageView hash map. This is implemented
+//with a mutex RW lock for concurrent R/W safety
 var Counter = struct {
 	sync.RWMutex
 	M map[string]int
 }{M: make(map[string]int)}
 
-//IPs is an instance of a [ipAdress]bool hash map. We don't care about the bool,
-//using a hash map in this case just for the IP Key, as it offers a
-//easy implementation on a set with quick insertion. This struct has a
-//mutex RW lock to stop goroutine data races
+//IPs is an instance of a [ipAdress]bool hash map. hash offers a
+//easy implementation of a set with quick insertion. This is implemented
+//with a mutex RW lock for concurrent R/W safety
 var IPs = struct {
 	sync.RWMutex
 	M map[string]bool
@@ -32,26 +31,22 @@ var IPs = struct {
 var SaveDuration = time.Minute * 1
 
 //IPList struct is used to marshal/unmarshal IP visitor data into JSON
-//to be sent to current storage
+//for disk storage
 type IPList struct {
 	IPs map[string]bool
 }
 
 //SavePoint struct is used to marshal/unmarshal pageview data into JSON
-//to be sent to current and historic storage
+//for disk storage
 type SavePoint struct {
 	PageCounts  map[string]int
 	UniqueViews int
 }
 
-//init checks checks for previos data, sets up multithreading and then
-//initiates the HTTP server. init() does not need to be called, it runs
-//automatically when the package is called.
+//init checks checks for previos data and then initiates the HTTP server.
+//init() does not need to be called, it runs on startup automatically.
 func init() {
-	//checks for present DB storage and loads it into memory
 	checkForRecords()
-
-	//start goroutine to periodicly write IP and page view sets to disk
 	go periodicMemoryWriter()
 }
 
@@ -71,9 +66,7 @@ func ViewInc(ip string, page string) {
 }
 
 //periodicMemoryWriter initiates a BoltDB client, sets up a ticker and
-//then wrties the IP and pageView maps to on persistant memory via BoltDB.
-//This means that in the highly unlikely ;) case that the program crashes,
-//a restart will reload the data and your view count won't vanish.
+//then wrties the maps to disk. Should be called as a go routine.
 func periodicMemoryWriter() {
 	//start the bolt client
 	boltClient, err := bolt.Open("viewCounter.db", 0600, nil)
@@ -88,8 +81,7 @@ func periodicMemoryWriter() {
 		return nil
 	})
 
-	//start a ticker for auto uploading the IPs and view count to bolt
-	//that triggers every ten minutes
+	//start a ticker for period between disk writes
 	ticker := time.NewTicker(SaveDuration)
 
 	for {
@@ -132,9 +124,7 @@ func periodicMemoryWriter() {
 			errLog(err)
 			return nil
 		})
-
 		//Debug fmt.Println("Save finish time: ", time.Now())
-
 	}
 }
 
@@ -144,7 +134,7 @@ func checkForRecords() {
 	if _, err := os.Stat("viewCounter.db"); err == nil {
 		log.Println("viewCount.db database already exists; processing old entries")
 
-		boltClient, err := bolt.Open("viewCounter.db", 0600, nil) //maybe change the 600 to a read only value
+		boltClient, err := bolt.Open("viewCounter.db", 0600, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -152,7 +142,6 @@ func checkForRecords() {
 
 		var b1, b2 []byte
 		boltClient.View(func(tx *bolt.Tx) error {
-			// Set the value "bar" for the key "foo".
 			b1 = tx.Bucket([]byte("historicData")).Get([]byte("current"))
 			errLog(err)
 
