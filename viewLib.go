@@ -2,7 +2,6 @@ package viewLib
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -27,6 +26,10 @@ var IPs = struct {
 	sync.RWMutex
 	M map[string]bool
 }{M: make(map[string]bool)}
+
+//RefreshTime is how often the page views and IPs are saved to disk, set at a
+//default of 1 minute
+var SaveDuration = time.Minute * 1
 
 //IPList struct is used to marshal/unmarshal IP visitor data into JSON
 //to be sent to current storage
@@ -87,16 +90,16 @@ func periodicMemoryWriter() {
 
 	//start a ticker for auto uploading the IPs and view count to bolt
 	//that triggers every ten minutes
-	ticker := time.NewTicker(time.Minute * 10)
+	ticker := time.NewTicker(SaveDuration)
 
 	for {
 
 		<-ticker.C
-		log.Println("Tick")
-		fmt.Println("start:", time.Now())
+		//Debug fmt.Println("Save start time: ", time.Now())
 
+		//The date is made of the day number concatinated with the year, e.g. the
+		//05/01/2015 would be 52015
 		date := strconv.Itoa((time.Now().YearDay() * 10000) + time.Now().Year())
-		fmt.Println(date)
 
 		Counter.RLock()
 		IPs.RLock()
@@ -130,7 +133,7 @@ func periodicMemoryWriter() {
 			return nil
 		})
 
-		fmt.Println("end:", time.Now())
+		//Debug fmt.Println("Save finish time: ", time.Now())
 
 	}
 }
