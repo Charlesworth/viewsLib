@@ -65,6 +65,15 @@ func ViewInc(ip string, page string) {
 	IPs.Unlock()
 }
 
+//PageExists checks the Counter map to see if that page is present
+func PageExists(page string) bool {
+	Counter.RLock()
+	_, ok := Counter.M[page]
+	Counter.RUnlock()
+
+	return ok
+}
+
 //periodicMemoryWriter initiates a BoltDB client, sets up a ticker and
 //then wrties the maps to disk. Should be called as a go routine.
 func periodicMemoryWriter() {
