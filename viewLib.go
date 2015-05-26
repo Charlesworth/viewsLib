@@ -57,21 +57,41 @@ func ViewInc(ip string, page string) {
 	Counter.Lock()
 	Counter.M[page]++
 	Counter.Unlock()
-	Counter.RLock()
-	Counter.RUnlock()
 
 	IPs.Lock()
 	IPs.M[ip] = true
 	IPs.Unlock()
 }
 
-//PageExists checks the Counter map to see if that page is present
-func PageExists(page string) bool {
-	Counter.RLock()
-	_, ok := Counter.M[page]
-	Counter.RUnlock()
+//AddPage adds a new page to the Counter with 0 views
+func AddPage(page string) {
+	Counter.Lock()
+	Counter.M[page] = 0
+	Counter.Unlock()
+}
 
-	return ok
+//DeletePage deletes the page and its views from the counter
+func DeletePage(page string) {
+	Counter.Lock()
+	delete(Counter.M, page)
+	Counter.Unlock()
+}
+
+//GetPageViews returns a boolean to indicate if a page is present in the
+//counter. If it is it also returns the count, else count = 0
+func GetPageViews(page string) (count int, exists bool) {
+	Counter.RLock()
+	count, exists = Counter.M[page]
+	Counter.RUnlock()
+	return
+}
+
+//GetNumberOfUniqueIPs returns the number of unique IPs
+func GetNumberOfUniqueIPs(page string) (numberOfUniqueIPs int) {
+	IPs.RLock()
+	numberOfUniqueIPs = len(IPs.M)
+	IPs.RUnlock()
+	return
 }
 
 //periodicMemoryWriter initiates a BoltDB client, sets up a ticker and
